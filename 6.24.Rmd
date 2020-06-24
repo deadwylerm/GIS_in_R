@@ -1,0 +1,357 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+### Class 1: Exploring the ArcGIS Software Suite
+In-class Exercise
+
+- Tools
+- Set selectable layers
+- Attribute manipulation
+
+- **Deliverable**: exported table
+
+Assignment
+
+- Topology exercise
+
+
+### Class 2: Displaying Data
+
+In-class Exercise
+
+- Data prep
+- Exploring existing ArcMap document
+- Exploring ArcMap
+- Symbology exercise
+- Properties exercise
+- Graphs in ArcMap
+
+- **Deliverables**: 
+  - Exported Symbols .jpeg
+  - Exported Propertise .jpeg
+  - Exported Graph as .jpeg
+  
+Assignment
+
+- Symbology and classigication
+- ArcMap practice
+
+- **Deliverable**: Exported map with symbolized data
+
+### Class 3: Information Assessment
+
+- Attribute Query
+
+```{r eval=FALSE, include=FALSE, results='hide'}
+library(sf)
+library(tidyverse)
+library(dplyr)
+library(raster)
+```
+  
+  
+  
+```{r}
+VA_counties <- st_read(dsn = "Class3_data/VA_Counties.shp")
+
+methods(class = "sf")
+
+head(VA_counties)
+
+##########################################################
+
+plot(VA_counties["COUNTY_NAM"], reset = FALSE, col = "white")
+
+plot(VA_counties %>%
+  filter( COUNTY_NAM == "Chesterfield"), 
+  col = "red",
+  add = TRUE,
+  reset = FALSE)
+
+plot(VA_counties %>%
+  filter( COUNTY_NAM == "Henrico"), 
+  col = "blue",
+  add = TRUE)
+
+
+```
+  
+- Spatial Query
+
+How many points fall within Chesterfield County?
+
+```{r}
+samples <- st_read(dsn = "Class3_data/strmsamplesite_dd83.shp")
+
+plot(VA_counties["COUNTY_NAM"], reset = FALSE, col = "white")
+plot(samples["VSS"], add = TRUE)
+
+# data does not overlay --> check projection (should have done this before anything else)
+
+st_crs(samples)
+st_crs(VA_counties)
+```
+
+  
+```{r}
+
+# transforming sample site projection to match the county boundaries
+
+samples_proj <- st_transform(samples, "+proj=longlat +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +no_defs")
+counties_proj <- st_transform(VA_counties, "+proj=longlat +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +no_defs")
+
+# plot to see if they overlay
+
+plot(counties_proj["COUNTY_NAM"], reset = FALSE, col = "white")
+plot(samples_proj["VSS"], add = TRUE)
+
+# Join the county name column from the VA counties data set to the sample site data set
+
+join <- st_join(samples_proj, counties_proj["COUNTY_NAM"])
+```
+  
+```{r}
+# number of sample sites in Chesterfield --> filter data, count the number of rows
+
+join %>%
+  filter(COUNTY_NAM == "Chesterfield") %>%
+  nrow()
+
+# 34 sample sites in Chesterfield
+```
+
+How many roads travel through Chesterfield County?
+
+```{r}
+
+roads <- st_read(dsn = "Class1_data/vector/VDOT_Main_Roads.shp")
+
+st_crs(roads)
+
+roads_proj <- st_transform(roads, "+proj=longlat +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +no_defs")
+
+st_crs(roads_proj)
+
+head(roads)
+
+plot(roads_proj["ROUTE_NAME"])
+
+roads_join <- st_join(counties_proj, roads_proj["ROUTE_NAME"])
+
+roads_join %>%
+   filter(COUNTY_NAM == "Chesterfield") %>%
+  nrow()
+
+```
+
+  
+```{r}
+#Join the other way
+
+roads_join2 <- st_join(roads_proj, counties_proj["COUNTY_NAM"])
+
+roads_join2 %>%
+   filter(COUNTY_NAM == "Chesterfield") %>%
+  nrow()
+
+head(roads_join2)
+```
+  
+```{r}
+
+roads_Ch2 <- roads_join2 %>%
+   filter(COUNTY_NAM == "Chesterfield")
+
+plot(counties_proj["COUNTY_NAM"] %>%
+  filter( COUNTY_NAM == "Chesterfield"),
+  col = "aliceblue",
+  reset = FALSE) +
+plot(roads_Ch2["ROUTE_NAME"],
+     col = "darkslategray",
+  add = TRUE)
+
+```
+
+```{r}
+# Get rid of roads that extend past county boundary
+
+roads_join3 <- st_join(roads_proj, counties_proj["COUNTY_NAM"], join = st_covered_by)
+head(roads_join3)
+
+roads_Ch3 <- roads_join3 %>%
+   filter(COUNTY_NAM == "Chesterfield")
+
+plot(counties_proj["COUNTY_NAM"] %>%
+  filter( COUNTY_NAM == "Chesterfield"),
+  col = "aliceblue",
+  reset = FALSE) +
+plot(roads_Ch3["ROUTE_NAME"],
+     col = "darkslategray",
+  add = TRUE)
+
+```
+  
+  
+```{r}
+
+roads_join3 %>%
+   filter(COUNTY_NAM == "Chesterfield") %>%
+  nrow()
+
+# 919 roads with "covered by" vs 948 roads with "intersects"
+```
+  
+In-class Exercise
+
+- Attribute Query
+```{r}
+# Using county data and stream sample sites
+
+head(counties_proj)
+head(samples_proj)
+
+plot(counties_proj["COUNTY_NAM"],
+     col = "cornsilk",
+     border = "cornsilk2",
+     reset = FALSE) +
+plot(samples_proj["VSS"], 
+     add = TRUE)
+
+```
+-
+  
+  - How many sample sites have a VSS score greater than 57?
+```{r}
+samples_proj %>%
+  filter(VSS > 57) %>%
+  nrow()
+
+#6 48 sample sites have a VSS score greater than 57
+```
+-
+
+  - How many stream sample sites have a VSS score in the 70s?
+```{r}
+samples_proj %>%
+  filter(VSS > 69) %>%
+  filter(VSS < 80) %>%
+  summary()
+
+# Use summary to check your work by looking at min and max
+
+# 183 stream sample sites have a VSS score in the 70s
+```
+
+- Location Query
+
+  - How many stream sample sites fall within Hanover County?
+```{r}
+
+# Spatial join sample sites to counties
+
+join <- st_join(samples_proj, counties_proj["COUNTY_NAM"])
+
+# Use filter to just see Hanover
+
+join %>%
+  filter(COUNTY_NAM == "Hanover") %>%
+  nrow()
+
+# There are 66 sample sites in Hanover County
+```
+- Combining Queries
+
+  - How many stream sample site points fall within Accomack County?
+```{r}
+
+join %>%
+  filter(COUNTY_NAM == "Accomack") %>%
+  nrow()
+
+# There are 35 stream sample sites in Accomack County
+
+```
+- 
+  
+  - Of those stream sample site points that fall within Accomack, how many have a VSS score greater than 69?
+  
+```{r}
+
+join %>%
+  filter(COUNTY_NAM == "Accomack") %>%
+  filter(VSS > 69) %>%
+  nrow()
+
+# 3 of the stream sample sites in Accomack County have a VSS score greater than 69
+```
+  
+ - Joining tables
+ 
+  - Join the stream sample sites_Join.dbf to the stream sample site points based off of the Loc_Code field
+```{r}
+
+library("foreign")
+
+sample_dbf <- read.dbf("Class3_data/strmsamplesites_Join.dbf")
+
+dbf_join <- merge(samples_proj, sample_dbf, by="LOC_CODE")
+```
+
+-
+
+  - Symbolize the stream sample site points based on the MIBI scores. Use 5 intervals using natural breaks
+  
+```{r}
+library(RColorBrewer)
+plot(counties_proj["COUNTY_NAM"],
+     col = "cornsilk1",
+     border = "cornsilk4",
+     reset = FALSE) +
+plot(dbf_join["MIBI_SCORE"],
+     breaks = "jenks", nbreaks= 5, 
+     pal = brewer.pal(5,"Dark2"),
+     pch = 20,
+     add = TRUE) 
+  
+
+```
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
