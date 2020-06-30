@@ -1,0 +1,96 @@
+---
+title: "Class 4: Projections"
+output: html_notebook
+---
+
+#### Class 4 Exercise
+- Scale
+- Resolution
+- Map Projections
+  - Build a map document. Work with the projections of the shapefiles to get the data to properly overlay 
+  
+```{r}
+# Load in packages I might use
+library(sf)
+library(tidyverse)
+library(dplyr)
+library(raster)
+
+# Load in class 4 data
+
+States_WGS84 <- st_read(dsn = "Class4_data/ESRI_States_WGS84.shp")
+Cities_UTM83 <- st_read(dsn = "Class4_data/ESRI_CapitalCities_UTM1883.shp")
+
+
+
+```
+
+Add ESRI States WGS 84 data
+```{r}
+plot(States_WGS84["STATE_NAME"])
+summary(States_WGS84)
+summary(Cities_UTM83)
+
+st_crs(States_WGS84)# No coordinate reference system
+st_crs(Cities_UTM83)
+
+names(Cities_UTM83)
+plot(Cities_UTM83["STATE_NAME"]) # Gives infinite axis extent error
+```
+Define projections
+```{r}
+
+# Can use this to search for projection information
+crs_data = rgdal::make_EPSG()
+View(crs_data)
+
+# EPSG for WGS 1984 is 4326
+# Because there is no coordinate information, we need to set it
+
+States_WGS84 <- st_set_crs(States_WGS84, 4326)
+st_crs(States_WGS84) # Now the coordinate reference system is set
+
+
+Cities_UTM83 <- st_set_crs(Cities_UTM83,  2959)
+st_crs(Cities_UTM83) # Set coordinate reference system for capital cities
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
