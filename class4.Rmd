@@ -37,7 +37,9 @@ st_crs(Cities_UTM83)
 names(Cities_UTM83)
 plot(Cities_UTM83["STATE_NAME"]) # Gives infinite axis extent error
 ```
+
 Define projections
+
 ```{r}
 
 # Can use this to search for projection information

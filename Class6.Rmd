@@ -1,0 +1,224 @@
+---
+title: Class 6 - Editing
+output: html_notebook
+---
+
+**Objectives:**
+
+- Create a shapefile
+- Edit shapefile data
+- Create a geodatabase
+- Create a feature class with data
+
+### Create a shapefile exercise
+
+```{r include=FALSE}
+# Load in packages I might use
+library(sf)
+library(tidyverse)
+library(dplyr)
+library(raster)
+library(rgdal)
+library(sp)
+library(rgeos)
+library(RColorBrewer)
+library(maps)
+library(ggmap)
+
+```
+
+- Create a new line shapefile called roadcenterlines.shp
+  - Set projection to Virginia State Plane South NAD 83
+  - Add the following fields:
+    - Name: this will be the name of the road
+    - RdLength: this will be where the road length is calculated
+    - CHGBY: this field holds the initials of the analyst that creates this edit. It will be the analysts's initials
+    
+- Create a new polygon shapefile called Diamond.shp
+  - Set projection to Virginia State Plane South NAD 83
+  - Add the following fields:
+    - Name
+    - Acres
+
+```{r echo=TRUE}
+
+# Create a simple dataframe
+
+roads <- data.frame("Name", "RdLength", "CHGBY")
+
+diamond <- data.frame("Name", "Acres")
+
+# These dataframes are empty, we add data in the next step
+
+#-----------------------------------------------------------------
+
+# Locate the Diamond Stadium. The stadium is located at 77° 27’ 48.211 West, 37° 34’ 18.176 North
+# In decimal degrees -> -77.46339167, 37.5717167
+
+myMap <- get_stamenmap(bbox = c(left = -77.4675,
+                                    bottom = 37.568,
+                                    right = -77.46,
+                                    top = 37.574),
+          maptype = "terrain", 
+          crop = TRUE,
+          zoom = 16)
+
+ggmap(myMap)
+
+
+
+
+
+
+
+
+
+
+```
+
+
+```{r echo=TRUE}
+
+library(leaflet)
+library(leaflet.extras)
+
+
+leaflet() %>% setView(lng = -77.46339, lat = 37.57171, zoom = 16) %>% addTiles() %>%
+  addCircles(
+    lng = -77.46339167, lat = 37.5717167,
+    radius = 80) %>%
+   addRectangles(
+    lng1=-77.4617, lat1=37.5708,
+    lng2=-77.463, lat2=37.569) %>%
+  addMeasurePathToolbar(options = measurePathOptions(showOnHover = FALSE, minPixelDistance = 30,
+showDistances = TRUE, showArea = TRUE, imperial = TRUE)
+)
+
+```
+
+```{r}
+
+map <- leaflet() %>% setView(lng = -77.46339, lat = 37.57171, zoom = 16) %>% addTiles() %>%
+  enableMeasurePath() %>%
+  addDrawToolbar(
+    targetGroup = "draw",
+    editOptions = editToolbarOptions(selectedPathOptions = selectedPathOptions()
+    )
+  )  %>%
+  addLayersControl(
+    overlayGroups = c("draw"),
+    options = layersControlOptions(collapsed = FALSE)
+  ) %>%
+  addStyleEditor() %>%
+  addMeasurePathToolbar(options = measurePathOptions(showOnHover = FALSE, minPixelDistance = 30,
+showDistances = TRUE, showArea = TRUE, imperial = TRUE)
+)
+
+map
+library(mapview)
+library(rgeos)
+library(mapedit)
+library(lwgeom)
+
+m <- editMap(map)
+m
+mapview(m$finished)
+mf <- m$finished
+mf
+
+st_area(mf)
+
+mf$area <- st_area(mf)
+mf
+mfdf <- as.data.frame(mf)
+mfdf
+
+write_rds(mf, path = "diamond.rds")
+
+diamond <- read_rds("diamond.rds")
+diamond
+```
+
+
+```{r}
+map <- leaflet() %>% 
+  setView(lng = -77.46339, lat = 37.57171, zoom = 16) %>%
+  addTiles() %>%
+  addPolygons(data = diamond)
+map
+
+map <- editMap(map)
+mapview(map$finished)
+map.fin <- map$finished
+
+map.fin$length <- st_length(map.fin)
+map.fin$length.ft <- map.fin$length * 3.28084
+map.fin
+
+
+write_rds(map.fin, path = "roads.rds")
+roads <- read_rds("roads.rds")
+roads$name <- c("Road 1", "Road 2")
+
+map <- leaflet() %>% 
+  setView(lng = -77.46339, lat = 37.57171, zoom = 16) %>%
+  addTiles() %>%
+  addPolygons(data = diamond) %>%
+  addPolylines(data = roads, popup = ~as.character(roads$name))
+map
+
+mapshot(map, url = "map.html")
+```
+
+```{r}
+
+cad <- map <- leaflet() %>% 
+  setView(lng = -76.855690, lat = 37.924421, zoom = 18) %>%
+  addProviderTiles("Esri.WorldImagery")
+
+cad
+
+library(leafpm)
+
+cad <- editMap(cad, editor = "leafpm")
+cad.fin <- cad$finished
+write_rds(cad.fin, path = "parcels.rds")
+parcels <- read_rds("parcels.rds")
+
+
+```
+
+
+```{r}
+map <- leaflet() %>% 
+  setView(lng = -77.46339, lat = 37.57171, zoom = 10) %>%
+  addTiles() %>%
+  addPolygons(data = diamond) %>%
+  addPolygons(data = parcels) %>%
+  addPolylines(data = roads, popup = ~as.character(roads$name))
+map
+map <- editMap(map, editor = "leafpm")
+
+```
+
+
+```{r}
+parcels <- editFeatures(parcels, editor = "leafpm")
+write_rds(parcels, path = "parcels.rds")
+
+read_rds("parcels.rds")
+mapview(parcels)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+

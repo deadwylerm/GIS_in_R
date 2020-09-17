@@ -1,0 +1,194 @@
+---
+title: "Class 5: Cartography"
+output: html_notebook
+---
+
+### Class 5 Exercise
+Make a research publication map to communicate the land cover and stream reaches in your research study area.
+
+Load in Data
+```{r echo=TRUE}
+# Load in packages I might use
+library(sf)
+library(tidyverse)
+library(dplyr)
+library(raster)
+library(rgdal)
+library(sp)
+library(rgeos)
+library(RColorBrewer)
+
+# Load in data
+
+NHD_MD <- "Class5_data/NHD_H_Maryland_GDB.gdb" # the input file geodatabase
+
+subset(ogrDrivers(), grepl("GDB", name)) # List all feature classes in a file geodatabse
+fc_list <- ogrListLayers(NHD_MD)
+print(fc_list) 
+
+NHDFlowline <- readOGR(dsn = NHD_MD, layer = "NHDFlowline") # Flowlines from the National Hydrography Dataset
+WBDHU12 <- readOGR(dsn = NHD_MD, layer = "WBDHU12") # Watershed boundaries from the National Hydrography Dataset
+
+Counties <- st_read(dsn = "Class5_data/esri_shps/USCounties_generalized.shp") # Delineates general boundaries of US counties
+States <- st_read(dsn = "Class5_data/esri_shps/USStates_generalized.shp") # Delinieates general boundaries of US states
+        
+```
+
+Project Data if Necessary
+
+```{r echo=TRUE}
+
+projection(NHDFlowline) 
+projection(WBDHU12)
+
+# Need to assign projection information (Geographic NAD 1983)
+# Google "Geographic NAD 1983 EPSG" --> EPSG:4269
+
+proj4string(NHDFlowline) <- CRS("+init=epsg:4269")
+proj4string(WBDHU12) <- CRS("+init=epsg:4269")
+
+# The geodatabase files use "sp" package functions, the .shp files use "sf" package functions
+
+st_crs(Counties)
+st_crs(States)
+
+Counties <- st_set_crs(Counties, 4269)
+States <- st_set_crs(States, 4269)
+
+```
+
+Study area is the county of Frederick, MD. The map should isolate all data to that boundary
+
+Include the following elements:
+
+- Flowlines from the NHD
+- Watershed boundaries from the NHD
+- Label the hydrological units
+- Include a legend for the NHD flowlines
+- Include a scale bar
+- Create an inset map and include:
+  - Show the state layer
+  - Identify the watershed of interest
+  - Have a bounding neatline/grid
+- Label the figure with a title
+- Export a JPEG of the map
+
+```{r echo=TRUE}
+# Isolate Frederick County, Maryland
+
+Frederick <- Counties %>%
+  filter(STATE_NAME == "Maryland") %>%
+  filter(NAME == "Frederick")
+
+plot(Frederick["NAME"])
+
+```
+
+Subset Flowlines and Hydrological Units to Frederick County
+
+```{r echo=TRUE}
+
+NHDFlowline_sf <- st_as_sf(NHDFlowline) # Need to convert flowlines to "sf" object so we can subset
+NHDFlowline_sf <- st_set_crs(NHDFlowline_sf, 4269)
+Flowline_Frederick <- NHDFlowline_sf[Frederick,]
+
+plot(Flowline_Frederick["FType"])
+
+Flowline_Frederick
+```
+
+```{r}
+
+WBDHU12_sf <- st_as_sf(WBDHU12) # Need to convert hydrologic units to "sf" so we can subset
+WBDHU12_sf <- st_set_crs(WBDHU12_sf, 4269)
+WBDHU12_Frederick <- WBDHU12_sf[Frederick, ] # Subset hydrologic units to Frederick County
+
+```
+
+```{r}
+plot(Frederick["NAME"],
+     reset=FALSE)
+plot(WBDHU12_Frederick["HUC12"],
+     add = TRUE)
+```
+
+
+
+```{r}
+
+plot(Frederick["NAME"],
+     col = "blue",
+     reset = FALSE)
+
+plot(WBDHU12_Frederick["HUC12"],
+     col = "white",
+     add = TRUE,
+     reset = FALSE)
+
+plot(Flowline_Frederick["FType"],
+     add = TRUE)
+
+# I don't think I can clip to the county polygon using subsetting. I think I need to spatial join
+```
+
+
+```{r}
+HUC_Fred <- st_intersection(WBDHU12_sf, Frederick)
+Flow_Fred <- st_intersection(NHDFlowline_sf, Frederick)
+
+plot(Flow_Fred["FType"])
+
+plot(HUC_Fred["HUC12"],
+     col = "white",
+     reset = FALSE)
+plot(Flow_Fred["FType"],
+     col = c("#0a637e","#2591ff","#baa8df","#750000"),
+     add = TRUE)
+
+Flow_Fred["FType"]
+
+length(unique(Flow_Fred$FType))
+```
+
+
+```{r}
+
+plot(HUC_Fred["HUC12"],
+     border = "black",
+     col = "lightyellow",
+     reset = FALSE)
+plot(Flow_Fred["FType"],
+     add = TRUE)
+```
+
+
+
+```{r}
+class(Flow_Fred$FType)
+Flow_Fred$FType <- as.factor(Flow_Fred$FType)
+nlevels(Flow_Fred$FType)
+```
+
+```{r}
+plot(States) %>%
+  filter(STATE_NAME == "Maryland")
+
+Maryland <- States %>%
+  filter(STATE_NAME == "Maryland")
+
+plot(Maryland["STATE_NAME"],
+     reset = FALSE)
+plot(Frederick["NAME"],
+     add = TRUE)
+```
+
+```{r}
+WBDHU12_Frederick
+```
+
+
+
+
+
+
+

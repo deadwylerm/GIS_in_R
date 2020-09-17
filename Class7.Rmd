@@ -1,0 +1,57 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r}
+library(sf)
+library(tidyverse)
+library(sp)
+library(rgdal)
+library(raster)
+library(rgeos)
+```
+
+###Data Load
+Import projection information from data/cnt/North_Virginia.shp
+
+```{r}
+setwd("~/temp/GIS_in_R/Class7_data")
+
+
+nva <- readOGR(dsn ="cnty", layer="North_Virginia")
+
+crs(nva)
+
+sva <- readOGR(dsn = "cnty", layer = "South_Virginia")
+
+```
+
+Add an ariel basemap to see if the data lines up properly with the basemap
+
+```{r}
+library(mapview)
+
+mapview(sva + nva)
+
+library(tmap)
+
+map_va <- tm_shape(sva + nva) +
+  tm_polygons()
+
+tmap_mode("plot")
+map_va
+
+mapview::mapview(sva + nva)
+
+```
+
+```{r}
+library(leaflet)
+```
+
+
+
+

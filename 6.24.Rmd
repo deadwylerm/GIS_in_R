@@ -35,7 +35,7 @@ In-class Exercise
   
 Assignment
 
-- Symbology and classigication
+- Symbology and classification
 - ArcMap practice
 
 - **Deliverable**: Exported map with symbolized data
@@ -320,18 +320,137 @@ plot(dbf_join["MIBI_SCORE"],
   
   #######################
   
+- Spatial Joins
+
+  - Create a table that has listed the County names and the total number of stream sample sites that fall within the County
+  
+```{r}
+library(tidyverse)
+
+samples_join <- st_join(samples_proj, counties_proj["COUNTY_NAM"])
+
+samples_df <- as.data.frame(samples_join)
+
+samples_join %>%
+  dplyr::select(LOC_CODE, COUNTY_NAM) %>%
+  group_by(COUNTY_NAM) %>%
+  summarize(n()) 
+
+```
+  How many stream sample sites fall within Goochland County?
+  
+```{r}
+
+samples_join %>%
+  dplyr::select(LOC_CODE, COUNTY_NAM) %>%
+  group_by(COUNTY_NAM) %>%
+  summarize(n())  %>%
+  filter(COUNTY_NAM == "Goochland")
+
+# Goochland has 6 sample sites
+
+
+```
+  
+- Create a layer which has the county boundary polygons and the average stream sample site VSS score
+
+```{r}
+names(samples_join)
+
+samples_mean <- samples_join %>%
+  dplyr::select(LOC_CODE, COUNTY_NAM, VSS) %>%
+  group_by(COUNTY_NAM) %>%
+  summarize(mean_VSS = mean(VSS) )
+
+plot(counties_proj["COUNTY_NAM"],
+     col = "cornsilk1",
+     border = "cornsilk4",
+     reset = FALSE)
+plot(samples_mean["mean_VSS"],
+     add = TRUE)
+
+
+# How do I get the legend to show? It pops up automatically when I plot the mean VSS alone
+
+
+
+
+```
+
+- Create a graph of the average VSS scores per county
+
+```{r}
+library(ggthemes)
+
+ggplot(samples_mean, aes(mean_VSS)) +
+  geom_histogram(bins = 10) +
+  theme_economist()
+
+
+
+```
+
+### Class 3 assignment  
+  
+  How many stream sampling sites have a VSS score greater than or equal to 70?
+  
+```{r}
+samples_join %>%
+  filter(VSS > 69) %>%
+  nrow()
+
+
+
+```
+  
+  206 sampling sites have a VSS score greater than or equal to 70
   
   
+```{r}
+# Load in new data. Need solid waste and census data
+
+waste <- st_read(dsn = "Class3_data/VA_solidwst/va_solid_waste.shp")
+census <- st_read(dsn = "Class3_data/census/census_tracts_2000.shp")
+
+```
+
+a) create a shapefile from the VA_Counties.shp showoing just the solid waste facilities in the Richmond Region called RR_solidwaste.shp
+
+```{r}
+# Richmond region: Charles City County, Chesterfield County, Goochland County, Hanover County, Henrico County, New Kent County, Powhatan County and Richmond City
+
+RR_waste <- counties_proj %>%
+  arrange(COUNTY_NAM) %>%
+  dplyr::filter(COUNTY_NAM %in% c("Charles City","Chesterfield","Goochland","Hanover","Henrico","New Kent","Powhatan","Richmond") & FIPS!=51159)
+
+# There are 2 entries named Richmond, use FIPS to remove Richmond County
+RR_waste
+
+```
+
+```{r}
+census %>%
+  filter(FIPSSTCO == 51760)
+
+plot(census["FIPSSTCO"])
+
+census <- as.data.frame(census)
+RR_waste$FIPS <- as.factor(RR_waste$FIPS)
+
+RR_waste <- left_join(RR_waste, census, by = c(FIPS = "FIPSSTCO"))
+census
+head(RR_waste)
+```
   
   
-  
-  
-  
-  
-  
-  
-  
-  
+```{r}
+dem <- read.dbf("Class3_data/census/SF1_CensusTractDem2000.dbf")
+
+
+RR_waste <- left_join(RR_waste, dem, by = c(STFID.y = "STFID"))
+
+RR_waste
+```
   
   
   
